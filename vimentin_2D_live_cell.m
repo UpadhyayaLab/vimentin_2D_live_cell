@@ -80,7 +80,8 @@ save('results_vimentin_FDD.mat', '-struct', 'results')
 cd(figures_dir)
 
 parfor i = 1:ncells
-    plot_curve_over_time(params.dt, FDD{i}, params.color, 'Time Since Imaging (s)', 'FDD (μm)', figures_dir, 'FDD_cell_', cell_number(i))
+    % plot_curve_over_time(params.dt, FDD{i}, params.color, 'Time Since Imaging (s)', 'FDD (μm)', figures_dir, 'FDD_cell_', cell_number(i))
+    plot_curve_over_time(params.dt, FDD{i}, [0, 0.5, 0], 'Time Since Imaging (s)', 'FDD (μm)', figures_dir, 'FDD_cell_', cell_number(i))
     plot_curve_over_time(params.dt, FDD_norm_first_val{i}, params.color, 'Time Since Imaging (s)', 'FDD, Norm to First Value', figures_dir, 'FDD_norm_first_val_cell_', cell_number(i))
     plot_curve_over_time(params.dt, FDD_norm_max_val{i}, params.color, 'Time Since Imaging (s)', 'FDD, Norm to Max Value', figures_dir, 'FDD_norm_max_val_cell_', cell_number(i))
 end

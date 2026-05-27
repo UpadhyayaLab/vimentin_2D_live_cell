@@ -5,16 +5,16 @@ close all
 % base_dir_list{i}{j} should contain data from condition i, experiment j
 
 % % non-activated
-base_dir_list{1}{1} = 'G:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220623_mCherry-Vimentin_SinglePlane\Cells_PLL\';
-base_dir_list{1}{2} = 'G:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220719_mCherry-Vimentin_SinglePlane\Cells_PLL\';
+base_dir_list{1}{1} = 'I:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220623_mCherry-Vimentin_SinglePlane\Cells_PLL\';
+base_dir_list{1}{2} = 'I:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220719_mCherry-Vimentin_SinglePlane\Cells_PLL\';
 base_dir_list{1}{3} = 'H:\FF\Vimentin_Data\20221103_mCherry-Vimentin_EGFP-Centrin-2_live_glass\PLL\cells\time_series\channels\';
 
 % activated
-base_dir_list{2}{1} = 'G:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220609_mCherry-Vimentin_SinglePlane\Cells\';
-base_dir_list{2}{2} = 'G:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220623_mCherry-Vimentin_SinglePlane\Cells_CD3\';
-base_dir_list{2}{3} = 'G:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220719_mCherry-Vimentin_SinglePlane\Cells_CD3\';
+base_dir_list{2}{1} = 'I:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220609_mCherry-Vimentin_SinglePlane\Cells\';
+base_dir_list{2}{2} = 'I:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220623_mCherry-Vimentin_SinglePlane\Cells_CD3\';
+base_dir_list{2}{3} = 'I:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220719_mCherry-Vimentin_SinglePlane\Cells_CD3\';
 base_dir_list{2}{4} = 'H:\FF\Vimentin_Data\20221103_mCherry-Vimentin_EGFP-Centrin-2_live_glass\aCD3\cells\time_series\channels\';
-base_dir_list{2}{5} = 'G:\FF\Vimentin_Project_2ndharddrive\20230203_mCherry-Vimentin_EGFP-Centrin-2\For Vimentin Contraction Analysis\No Treatment - aCD3\individual channels\';
+base_dir_list{2}{5} = 'I:\FF\Vimentin_Project_2ndharddrive\20230203_mCherry-Vimentin_EGFP-Centrin-2\For Vimentin Contraction Analysis\No Treatment - aCD3\individual channels\';
 
 % DMSO and ciliobrevin
 
@@ -25,7 +25,7 @@ base_dir_list{2}{5} = 'G:\FF\Vimentin_Project_2ndharddrive\20230203_mCherry-Vime
 % base_dir_list{2}{1} = 'H:\FF\Vimentin_Data\Ciliobrevin_live\Cell Ciliobrevin\';
 
 %% define where the outputs should be saved
-save_dir = 'G:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\figures\';
+save_dir = 'I:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\figures_temp_supp_fig\';
 
 % save_dir = 'H:\FF\Vimentin_Data\Ciliobrevin_live\figures\';
 save_dir_individual_cells = [save_dir, 'individual_cells\'];
@@ -75,8 +75,8 @@ for i = 1:numel(base_dir_list)
     
         % FDD starting from max value
         fname = ['FDD_norm_aligned_', condition_names_for_saving_figs{i}, '_cell'];
-        plot_curve_over_time(dt, FDD_norm_aligned{i}{j}, colors{i}, 'Time Since FDD Peak (s)', 'FDD (Normalized)', save_dir_individual_cells, fname, j)
-        
+        % plot_curve_over_time(dt, FDD_norm_aligned{i}{j}, colors{i}, 'Time Since FDD Peak (s)', 'FDD (Normalized)', save_dir_individual_cells, fname, j)
+        plot_curve_over_time(dt, FDD_norm_aligned{i}{j}, [0, 0.5, 0], 'Time Since FDD Peak (s)', 'FDD (Normalized)', save_dir_individual_cells, fname, j)
     end    
 end
 

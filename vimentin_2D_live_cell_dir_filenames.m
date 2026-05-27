@@ -1,6 +1,6 @@
 %% specify directories, cell numbers, and formatting of the cell names
 
-base_dirs = {'G:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220609_mCherry-Vimentin_SinglePlane\Cells\'};
+base_dirs = {'I:\FF\Vimentin_Project_2ndharddrive\vimentin_contraction\2D\mCherry-Vimentin\20220609_mCherry-Vimentin_SinglePlane\Cells\'};
 cell_number = {1:4}; % specify the cells to consider in each directory
 params.prefix = 'Cell'; % adjust as needed
 
