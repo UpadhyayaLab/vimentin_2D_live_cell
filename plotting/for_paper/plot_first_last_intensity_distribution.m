@@ -1,4 +1,4 @@
-function plot_first_last_intensity_distribution(csv_path, color, figures_dir, legend_mode, name_prefix, xlim_range)
+function plot_first_last_intensity_distribution(csv_path, color, figures_dir, legend_mode, name_prefix, xlim_range, ylim_range)
 % Plot Frame 0 and final-frame intensity distributions overlaid on semilogy.
 % Layout matches the paper-figure convention in this repo (6x6 in white-bg
 % square; tight whitespace via LooseInset; .fig + .tif + .png @ 150 dpi).
@@ -22,6 +22,9 @@ function plot_first_last_intensity_distribution(csv_path, color, figures_dir, le
     if nargin < 6 || isempty(xlim_range)
         xlim_range = [];
     end
+    if nargin < 7 || isempty(ylim_range)
+        ylim_range = [1e-4 1];
+    end
 
     frames = read_intensity_distribution_csv(csv_path);
     first  = frames(1);
@@ -33,10 +36,10 @@ function plot_first_last_intensity_distribution(csv_path, color, figures_dir, le
     fig = figure('Units', 'inches', 'Position', [2 2 6 6], 'Color', 'white');
 
     semilogy(first.bins, first.pdf, 'LineStyle', 'none', 'Marker', 'x', ...
-             'Color', base_rgb, 'MarkerSize', 10, 'LineWidth', 2);
+             'Color', base_rgb, 'MarkerSize', 8, 'LineWidth', 2);
     hold on;
     semilogy(last.bins, last.pdf, 'LineStyle', 'none', 'Marker', 'o', ...
-             'Color', light_rgb, 'MarkerSize', 10, 'LineWidth', 2);
+             'Color', light_rgb, 'MarkerFaceColor', light_rgb, 'MarkerSize', 8, 'LineWidth', 2);
 
     set(gca, 'linewidth', 2, 'fontweight', 'bold', 'fontsize', 26);
     xlabel('Pixel Intensity Value I')
@@ -46,14 +49,13 @@ function plot_first_last_intensity_distribution(csv_path, color, figures_dir, le
         case 'kurtosis'
             k1 = pdf_kurtosis(first.bins, first.pdf);
             k2 = pdf_kurtosis(last.bins,  last.pdf);
-            legend({sprintf('Frame %d Kurtosis = %.2f', first.frame_number, k1), ...
-                    sprintf('Frame %d Kurtosis = %.2f', last.frame_number,  k2)}, ...
-                   'Location', 'northeast', 'FontSize', 14);
+            legend({sprintf('Kurtosis at 0 min: %.2f',  k1), ...
+                    sprintf('Kurtosis at 10 min: %.2f', k2)}, ...
+                   'Location', 'northeast', 'FontSize', 12);
             suffix = '_with_kurtosis';
         case 'frame'
-            legend({sprintf('Frame %d', first.frame_number), ...
-                    sprintf('Frame %d', last.frame_number)}, ...
-                   'Location', 'northeast', 'FontSize', 18);
+            legend({'0 min', '10 min'}, ...
+                   'Location', 'northeast', 'FontSize', 14);
             suffix = '';
         case 'none'
             suffix = '_no_legend';
@@ -66,9 +68,10 @@ function plot_first_last_intensity_distribution(csv_path, color, figures_dir, le
         xlim(xlim_range);
         suffix = [suffix, '_fixed_xlim'];
     end
-    % Add a touch of headroom so top markers don't sit at the frame edge.
-    yl = ylim;
-    ylim([yl(1), yl(2)*1.5]);
+    % Y-axis range is per-condition-pair: PLL/CD3 cap at 0.5, DMSO/Cilio at 0.1.
+    % yticks set at every decade; MATLAB only renders ticks inside the ylim range.
+    ylim(ylim_range);
+    yticks([1e-4 1e-3 1e-2 1e-1]);
 
     drawnow;
     ax = gca;

@@ -1,4 +1,4 @@
-function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv, inset_color, figures_dir, fname, main_xlim)
+function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv, inset_color, figures_dir, fname, main_xlim, main_ylim)
 % Plot a main IntensityDistribution (Frame 0 + last frame) on the full 6x6
 % paper-figure layout, then overlay a smaller axes in the upper-right showing
 % the same two-frame style for a second IntensityDistribution.csv. No legend,
@@ -14,6 +14,9 @@ function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv,
 
     if nargin < 7 || isempty(main_xlim)
         main_xlim = [];
+    end
+    if nargin < 8 || isempty(main_ylim)
+        main_ylim = [1e-4 1];
     end
 
     main_frames  = read_intensity_distribution_csv(main_csv);
@@ -34,10 +37,10 @@ function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv,
     % --- Main axes ---
     main_ax = axes('Parent', fig);
     semilogy(main_ax, main_first.bins, main_first.pdf, 'LineStyle', 'none', ...
-             'Marker', 'x', 'Color', main_base, 'MarkerSize', 10, 'LineWidth', 2);
+             'Marker', 'x', 'Color', main_base, 'MarkerSize', 8, 'LineWidth', 2);
     hold(main_ax, 'on');
     semilogy(main_ax, main_last.bins, main_last.pdf, 'LineStyle', 'none', ...
-             'Marker', 'o', 'Color', main_light, 'MarkerSize', 10, 'LineWidth', 2);
+             'Marker', 'o', 'Color', main_light, 'MarkerFaceColor', main_light, 'MarkerSize', 8, 'LineWidth', 2);
 
     set(main_ax, 'linewidth', 2, 'fontweight', 'bold', 'fontsize', 26);
     xlabel(main_ax, 'Pixel Intensity Value I');
@@ -46,24 +49,39 @@ function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv,
     if ~isempty(main_xlim)
         xlim(main_ax, main_xlim);
     end
-    add_y_headroom(main_ax, 1.5);
+    % Y-axis range from caller (per-condition-pair).
+    ylim(main_ax, main_ylim);
+    yticks(main_ax, [1e-4 1e-3 1e-2 1e-1]);
 
     drawnow;
     main_ax.LooseInset = main_ax.TightInset + [0.01 0.03 0.01 0.01];
 
-    % --- Inset axes (upper-right, slightly higher/righter than before) ---
-    inset_ax = axes('Parent', fig, 'Position', [0.62, 0.62, 0.34, 0.34], ...
+    % --- Inset axes (upper-left of figure area; left/up/taller per Frank's iter) ---
+    inset_ax = axes('Parent', fig, 'Position', [0.57, 0.62, 0.384, 0.352], ...
                     'Color', 'white');
     semilogy(inset_ax, inset_first.bins, inset_first.pdf, 'LineStyle', 'none', ...
-             'Marker', 'x', 'Color', inset_base, 'MarkerSize', 6, 'LineWidth', 1.5);
+             'Marker', 'x', 'Color', inset_base, 'MarkerSize', 5, 'LineWidth', 1.5);
     hold(inset_ax, 'on');
     semilogy(inset_ax, inset_last.bins, inset_last.pdf, 'LineStyle', 'none', ...
-             'Marker', 'o', 'Color', inset_light, 'MarkerSize', 6, 'LineWidth', 1.5);
+             'Marker', 'o', 'Color', inset_light, 'MarkerFaceColor', inset_light, 'MarkerSize', 5, 'LineWidth', 1.5);
 
-    set(inset_ax, 'linewidth', 1.5, 'fontweight', 'bold', 'fontsize', 12, 'Box', 'on');
-    ylabel(inset_ax, 'P(I)', 'FontSize', 12, 'FontWeight', 'bold');
+    set(inset_ax, 'linewidth', 1.5, 'fontweight', 'bold', 'fontsize', 10, 'Box', 'on');
     axis(inset_ax, 'tight');
-    add_y_headroom(inset_ax, 1.5);
+    % Match the inset's x-range to the main so the two distributions share the
+    % same intensity scale (visually shows that PLL stays narrow vs CD3).
+    if ~isempty(main_xlim)
+        xlim(inset_ax, main_xlim);
+    end
+    % Use the same y-range as the main axes so the two distributions share
+    % the same probability scale.
+    ylim(inset_ax, main_ylim);
+    yticks(inset_ax, [1e-4 1e-3 1e-2 1e-1]);
+
+    % Make the inset the current axes before labeling (TCell convention) so
+    % nothing implicit lands on the main axes.
+    axes(inset_ax);
+    xlabel(inset_ax, 'Intensity (I)', 'FontSize', 10, 'FontWeight', 'bold');
+    ylabel(inset_ax, 'P(I)', 'FontSize', 10, 'FontWeight', 'bold');
 
     % --- Save ---
     if ~isfolder(figures_dir); mkdir(figures_dir); end
