@@ -55,6 +55,14 @@ for k = 1:numel(cfg)
     treat_mean = trim_trailing_nan(T{:, cfg(k).treatment_cols(1)});
     treat_se   = trim_trailing_nan(T{:, cfg(k).treatment_cols(2)});
 
+    % Truncate every series to the shortest one so all conditions span the
+    % same time range (avoids an asymmetric tail past the shorter condition).
+    n_min = min([numel(ctrl_mean), numel(ctrl_se), numel(treat_mean), numel(treat_se)]);
+    ctrl_mean  = ctrl_mean(1:n_min);
+    ctrl_se    = ctrl_se(1:n_min);
+    treat_mean = treat_mean(1:n_min);
+    treat_se   = treat_se(1:n_min);
+
     ydata_mean = {ctrl_mean(:)',  treat_mean(:)'};
     ydata_SE   = {ctrl_se(:)',    treat_se(:)'};
 

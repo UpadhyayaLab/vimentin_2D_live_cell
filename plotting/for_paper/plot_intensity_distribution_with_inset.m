@@ -1,4 +1,4 @@
-function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv, inset_color, figures_dir, fname, main_xlim, main_ylim)
+function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv, inset_color, figures_dir, fname, main_xlim, main_ylim, inset_xlim)
 % Plot a main IntensityDistribution (Frame 0 + last frame) on the full 6x6
 % paper-figure layout, then overlay a smaller axes in the upper-right showing
 % the same two-frame style for a second IntensityDistribution.csv. No legend,
@@ -17,6 +17,9 @@ function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv,
     end
     if nargin < 8 || isempty(main_ylim)
         main_ylim = [1e-4 1];
+    end
+    if nargin < 9 || isempty(inset_xlim)
+        inset_xlim = main_xlim;   % default: share main's x-range
     end
 
     main_frames  = read_intensity_distribution_csv(main_csv);
@@ -37,10 +40,10 @@ function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv,
     % --- Main axes ---
     main_ax = axes('Parent', fig);
     semilogy(main_ax, main_first.bins, main_first.pdf, 'LineStyle', 'none', ...
-             'Marker', 'x', 'Color', main_base, 'MarkerSize', 8, 'LineWidth', 2);
+             'Marker', 'x', 'Color', main_base, 'MarkerSize', 12, 'LineWidth', 2);
     hold(main_ax, 'on');
     semilogy(main_ax, main_last.bins, main_last.pdf, 'LineStyle', 'none', ...
-             'Marker', 'o', 'Color', main_light, 'MarkerFaceColor', main_light, 'MarkerSize', 8, 'LineWidth', 2);
+             'Marker', 'o', 'Color', main_light, 'MarkerSize', 12, 'LineWidth', 2);
 
     set(main_ax, 'linewidth', 2, 'fontweight', 'bold', 'fontsize', 26);
     xlabel(main_ax, 'Pixel Intensity Value I');
@@ -53,6 +56,13 @@ function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv,
     ylim(main_ax, main_ylim);
     yticks(main_ax, [1e-4 1e-3 1e-2 1e-1]);
 
+    % Legend in lower-left of main axes (sparse data region for CD3-like decay),
+    % nudged right and up from MATLAB's default 'southwest' position.
+    lgd_main = legend(main_ax, {'0 min', '10 min'}, 'Location', 'southwest', 'FontSize', 18);
+    lgd_main.Units = 'normalized';
+    lgd_main.Position(1) = lgd_main.Position(1) + 0.11;
+    lgd_main.Position(2) = lgd_main.Position(2) + 0.11;
+
     drawnow;
     main_ax.LooseInset = main_ax.TightInset + [0.01 0.03 0.01 0.01];
 
@@ -60,17 +70,16 @@ function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv,
     inset_ax = axes('Parent', fig, 'Position', [0.57, 0.62, 0.384, 0.352], ...
                     'Color', 'white');
     semilogy(inset_ax, inset_first.bins, inset_first.pdf, 'LineStyle', 'none', ...
-             'Marker', 'x', 'Color', inset_base, 'MarkerSize', 5, 'LineWidth', 1.5);
+             'Marker', 'x', 'Color', inset_base, 'MarkerSize', 8, 'LineWidth', 1.5);
     hold(inset_ax, 'on');
     semilogy(inset_ax, inset_last.bins, inset_last.pdf, 'LineStyle', 'none', ...
-             'Marker', 'o', 'Color', inset_light, 'MarkerFaceColor', inset_light, 'MarkerSize', 5, 'LineWidth', 1.5);
+             'Marker', 'o', 'Color', inset_light, 'MarkerSize', 8, 'LineWidth', 1.5);
 
     set(inset_ax, 'linewidth', 1.5, 'fontweight', 'bold', 'fontsize', 10, 'Box', 'on');
     axis(inset_ax, 'tight');
-    % Match the inset's x-range to the main so the two distributions share the
-    % same intensity scale (visually shows that PLL stays narrow vs CD3).
-    if ~isempty(main_xlim)
-        xlim(inset_ax, main_xlim);
+    % Inset x-range from caller (defaults to main_xlim for matched scale).
+    if ~isempty(inset_xlim)
+        xlim(inset_ax, inset_xlim);
     end
     % Use the same y-range as the main axes so the two distributions share
     % the same probability scale.
@@ -82,6 +91,7 @@ function plot_intensity_distribution_with_inset(main_csv, main_color, inset_csv,
     axes(inset_ax);
     xlabel(inset_ax, 'Intensity (I)', 'FontSize', 10, 'FontWeight', 'bold');
     ylabel(inset_ax, 'P(I)', 'FontSize', 10, 'FontWeight', 'bold');
+    legend(inset_ax, {'0 min', '10 min'}, 'Location', 'northeast', 'FontSize', 9);
 
     % --- Save ---
     if ~isfolder(figures_dir); mkdir(figures_dir); end

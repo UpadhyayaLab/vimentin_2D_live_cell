@@ -19,8 +19,8 @@ if ~isfolder(figures_dir_extras); mkdir(figures_dir_extras); end
 % Colors follow the repo convention from vimentin_2D_live_cells_postprocessing_combined_data.m:
 % PLL=r, CD3=b for the activation pair; DMSO=b, Ciliobrevin=m for the dynein pair.
 % Fixed x-axis limits per condition pair.
-cells(1) = struct('folder', 'CD3 20220719 Cell 9', 'color', 'b', 'xlim_range', [70 350], 'ylim_range', [4e-5 0.5]);
-cells(2) = struct('folder', 'PLL 20220623 Cell 2', 'color', 'r', 'xlim_range', [70 350], 'ylim_range', [4e-5 0.5]);
+cells(1) = struct('folder', 'CD3 20220719 Cell 9', 'color', 'b', 'xlim_range', [70 325], 'ylim_range', [1e-4 0.5]);
+cells(2) = struct('folder', 'PLL 20220623 Cell 2', 'color', 'r', 'xlim_range', [70 325], 'ylim_range', [1e-4 0.5]);
 cells(3) = struct('folder', 'DMSO Cell 6',         'color', 'b', 'xlim_range', [70 200], 'ylim_range', [1e-4 0.1]);
 cells(4) = struct('folder', 'Ciliobrevin Cell 11', 'color', 'm', 'xlim_range', [70 200], 'ylim_range', [1e-4 0.1]);
 
@@ -76,4 +76,4 @@ end
 plot_intensity_distribution_with_inset( ...
     fullfile(data_root, 'CD3 20220719 Cell 9', 'IntensityDistribution.csv'), 'b', ...
     fullfile(data_root, 'PLL 20220623 Cell 2', 'IntensityDistribution.csv'), 'r', ...
-    figures_dir_main, 'CD3_with_PLL_inset_Intensity_Distributions', [70 350], [4e-5 0.5]);
+    figures_dir_main, 'CD3_with_PLL_inset_Intensity_Distributions', [70 325], [1e-4 0.5], [70 200]);

@@ -19,6 +19,7 @@ for i = 1:nconditions
 end    
 
 set(gca,'linewidth',2,'fontweight','bold','fontsize',26);
+box on;
 xlabel(x_label)
 ylh = ylabel(y_label);
 

@@ -36,10 +36,10 @@ function plot_first_last_intensity_distribution(csv_path, color, figures_dir, le
     fig = figure('Units', 'inches', 'Position', [2 2 6 6], 'Color', 'white');
 
     semilogy(first.bins, first.pdf, 'LineStyle', 'none', 'Marker', 'x', ...
-             'Color', base_rgb, 'MarkerSize', 8, 'LineWidth', 2);
+             'Color', base_rgb, 'MarkerSize', 12, 'LineWidth', 2);
     hold on;
     semilogy(last.bins, last.pdf, 'LineStyle', 'none', 'Marker', 'o', ...
-             'Color', light_rgb, 'MarkerFaceColor', light_rgb, 'MarkerSize', 8, 'LineWidth', 2);
+             'Color', light_rgb, 'MarkerSize', 12, 'LineWidth', 2);
 
     set(gca, 'linewidth', 2, 'fontweight', 'bold', 'fontsize', 26);
     xlabel('Pixel Intensity Value I')
