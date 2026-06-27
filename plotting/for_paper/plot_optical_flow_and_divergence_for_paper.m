@@ -37,6 +37,10 @@ cfg(strcmp({cfg.folder}, 'Ciliobrevin Cell 11')).div_limit_source = 'DMSO Cell 6
 cfg(strcmp({cfg.folder}, 'PLL 20220623 Cell 2')).div_limit_source = 'CD3 20220719 Cell 9';
 cfg(strcmp({cfg.folder}, 'Ciliobrevin Cell 11')).flow_limit_source = 'DMSO Cell 6';
 cfg(strcmp({cfg.folder}, 'PLL 20220623 Cell 2')).flow_limit_source = 'CD3 20220719 Cell 9';
+% DMSO/Ciliobrevin have a smaller field of view -> 3 um divergence scalebar so it
+% doesn't dominate the panel (CD3/PLL keep the base 5 um). Matches the paper figures.
+cfg(strcmp({cfg.folder}, 'DMSO Cell 6')).divergence_scalebar_um = 3;
+cfg(strcmp({cfg.folder}, 'Ciliobrevin Cell 11')).divergence_scalebar_um = 3;
 
 if ~isfolder(review_root); mkdir(review_root); end
 div_limit_lookup = containers.Map('KeyType', 'char', 'ValueType', 'any');
@@ -605,7 +609,7 @@ end
 function add_divergence_scalebar(ax, n_cols, n_rows, um_per_pixel, scalebar_um)
     bar_len_px = scalebar_um / um_per_pixel;
     bar_height = 0.72;
-    x_margin = 1.2;
+    x_margin = 2.5;   % cells of gap from the right edge (was 1.2 - moved further in)
     y_margin = 1.75;
     x_start = n_cols - x_margin - bar_len_px;
     y_bar = n_rows - y_margin - bar_height;
