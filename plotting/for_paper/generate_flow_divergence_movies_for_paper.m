@@ -41,12 +41,15 @@ CELLS_OVERRIDE = {};
 env_cells = getenv('MOVIE_CELLS');
 if ~isempty(env_cells); CELLS_OVERRIDE = {env_cells}; end
 
-% div_scalebar_um: 5 um for CD3/PLL, 3 um for the smaller DMSO/Cilio fields of view
-% (matches the paper figures).
+% div_scalebar_um: 5 um for CD3/PLL, 3 um for the smaller DMSO/Cilio fields of view.
+% div_src: which cell's divergence colour limits to ADOPT, so the movie colorbars
+% match the for_paper figures exactly (the static script pairs control -> activated
+% via div_limit_source). CD3 & PLL use CD3's limits; DMSO & Cilio use DMSO's.
 cells = struct( ...
     'folder',          {'CD3 20220719 Cell 9','PLL 20220623 Cell 2','DMSO Cell 6','Ciliobrevin Cell 11'}, ...
     'condition',       {'CD3','PLL','DMSO','Ciliobrevin'}, ...
-    'div_scalebar_um', {5, 5, 3, 3});
+    'div_scalebar_um', {5, 5, 3, 3}, ...
+    'div_src',         {'CD3','CD3','DMSO','DMSO'});
 if ~isempty(CELLS_OVERRIDE)
     keep = ismember({cells.folder}, CELLS_OVERRIDE);
     cells = cells(keep);
@@ -59,6 +62,11 @@ env_kinds = getenv('MOVIE_KINDS');
 if ~isempty(env_kinds); kinds = strsplit(env_kinds, ','); end
 do_flow = any(strcmp(kinds, 'flow'));
 do_div  = any(strcmp(kinds, 'divergence'));
+
+% Optional env var MOVIE_NAME_FILTER: only (re)render movies whose output path
+% contains this substring (for targeted single-movie re-renders).
+name_filter = getenv('MOVIE_NAME_FILTER');
+want = @(p) isempty(name_filter) || contains(p, name_filter);
 
 for c = 1:numel(cells)
     folder    = cells(c).folder;
@@ -88,11 +96,29 @@ for c = 1:numel(cells)
         div_max = max(div_max, max(dv(:)));
     end
     if flow_speed_max == 0; flow_speed_max = 1; end
-    div_limits = [div_min div_max];
 
-    % ---- render flow movie ----
-    if do_flow
-        flow_path = fullfile(out_dir, sprintf('%s Flow Fields.mp4', condition));
+    % Divergence colour limits over the SAME 3 windows the for_paper figures use
+    % (0-3, 147-150, 297-300 -> frames 1, 50, 100), so the movie colorbar matches.
+    win_idx = [1 50 100]; win_idx = win_idx(win_idx <= nF);
+    dmin3 = inf; dmax3 = -inf;
+    for w = win_idx
+        dmin3 = min(dmin3, min(div_stack{w}(:)));
+        dmax3 = max(dmax3, max(div_stack{w}(:)));
+    end
+
+    % stash for the paired-limit divergence + combined movies rendered after this loop
+    store(c).condition       = condition; %#ok<AGROW>
+    store(c).flow_disp       = flow_disp;
+    store(c).div_stack       = div_stack;
+    store(c).flow_speed_max  = flow_speed_max;
+    store(c).div_lim3        = [dmin3 dmax3];
+    store(c).div_scalebar_um = cells(c).div_scalebar_um;
+    store(c).div_src         = cells(c).div_src;
+    store(c).nF              = nF;
+
+    % ---- render flow movie (instantaneous speed, per-cell auto-scale) ----
+    flow_path = fullfile(out_dir, sprintf('%s Flow Fields.mp4', condition));
+    if do_flow && want(flow_path)
         % Upright Unicode mu (U+03BC = char(956)) so the unit reads as an actual
         % micro sign, not TeX \mu's italic math glyph.
         speed_label = ['Speed (' char(956) 'm s^{-1})'];
@@ -100,13 +126,56 @@ for c = 1:numel(cells)
             um_per_pixel * flow_downsample, 'Flow Field', speed_label, []);
         fprintf('  wrote %s\n', flow_path);
     end
+end
 
-    % ---- render divergence movie ----
-    if do_div
-        div_path = fullfile(out_dir, sprintf('%s Divergence Fields.mp4', condition));
-        render_movie(div_path, fps, frame_px, nF, 'divergence', div_stack, div_limits, ...
-            um_per_pixel, 'Divergence', 'Divergence', cells(c).div_scalebar_um);
+% ---- render individual divergence movies with PAIRED limits (match figures) ----
+if do_div
+    for c = 1:numel(store)
+        isrc = find(strcmp({store.condition}, store(c).div_src), 1);
+        dl = store(isrc).div_lim3;   % adopt the activated cell's limits
+        div_path = fullfile(out_dir, sprintf('%s Divergence Fields.mp4', store(c).condition));
+        if ~want(div_path); continue; end
+        render_movie(div_path, fps, frame_px, store(c).nF, 'divergence', store(c).div_stack, dl, ...
+            um_per_pixel, 'Divergence of Cumulative Displacement Field', 'Divergence', store(c).div_scalebar_um);
         fprintf('  wrote %s\n', div_path);
+    end
+end
+
+% ===== combined activated/control pair movies (side-by-side, shared colorbar) =====
+% Only run when both members of a pair were processed (skips single-cell smoke tests).
+combined_dir = fullfile(out_dir, 'combined');
+if ~isfolder(combined_dir); mkdir(combined_dir); end
+% left|right orderings: activated-left, control-left (e.g. PLL before CD3), etc.
+pairs = struct('left', {'CD3', 'DMSO', 'PLL'}, 'right', {'PLL', 'Ciliobrevin', 'CD3'});
+for p = 1:numel(pairs)
+    ia = find(strcmp({store.condition}, pairs(p).left), 1);
+    ib = find(strcmp({store.condition}, pairs(p).right), 1);
+    if isempty(ia) || isempty(ib); continue; end
+    A = store(ia); B = store(ib);
+    % divergence colour limits ALWAYS come from the activated cell (A.div_src),
+    % independent of which panel is on the left, so the scale matches the figures.
+    isrc = find(strcmp({store.condition}, A.div_src), 1);
+    dlim = store(isrc).div_lim3;
+    nFp = min(A.nF, B.nF);
+    for loc = {'Right', 'Below'}
+        cbl = loc{1};
+        outp = fullfile(combined_dir, sprintf('%s vs %s Flow Fields Colorbar %s.mp4', A.condition, B.condition, cbl));
+        if do_flow && want(outp)
+            fmax = max(A.flow_speed_max, B.flow_speed_max);
+            speed_label = ['Speed (' char(956) 'm s^{-1})'];
+            render_pair_movie(outp, fps, 'flow', A.flow_disp, B.flow_disp, [0 fmax], ...
+                um_per_pixel * flow_downsample, 'Flow Field', speed_label, [], [], ...
+                A.condition, B.condition, cbl, nFp);
+            fprintf('  wrote %s\n', outp);
+        end
+        outp = fullfile(combined_dir, sprintf('%s vs %s Divergence Fields Colorbar %s.mp4', A.condition, B.condition, cbl));
+        if do_div && want(outp)
+            dl = dlim;   % activated cell's limits = the for_paper figure scale
+            render_pair_movie(outp, fps, 'divergence', A.div_stack, B.div_stack, dl, ...
+                um_per_pixel, 'Divergence of Cumulative Displacement Field', 'Divergence', A.div_scalebar_um, B.div_scalebar_um, ...
+                A.condition, B.condition, cbl, nFp);
+            fprintf('  wrote %s\n', outp);
+        end
     end
 end
 
@@ -125,7 +194,7 @@ function render_movie(out_path, fps, frame_px, nF, kind, fields, clim_vals, um_p
     % Fixed square plot box + explicit colorbar slot so the bar always renders
     % (data grids are square, so a square box needs no axis-equal auto-resize).
     ax_pos = [0.075 0.075 0.70 0.70];
-    cb_pos = [0.85 0.135 0.032 0.58];
+    cb_pos = [0.79 0.135 0.032 0.58];   % close to the panel's right edge (0.775)
 
     fig = figure('Visible', 'off', 'Units', 'pixels', ...
         'Position', [100 100 frame_px frame_px], 'Color', 'white');
@@ -142,6 +211,7 @@ function render_movie(out_path, fps, frame_px, nF, kind, fields, clim_vals, um_p
         cb.Label.FontWeight = 'bold';
     end
 
+    crop_box = [];   % computed once from frame 1, reused so all frames match size
     for i = 1:nF
         cla(ax);
         hold(ax, 'on');   % keep NextPlot='add' so imagesc/patch don't reset the axes (which deletes the colorbar)
@@ -149,32 +219,142 @@ function render_movie(out_path, fps, frame_px, nF, kind, fields, clim_vals, um_p
         if strcmp(kind, 'flow')
             speed = hypot(f(:, :, 1), f(:, :, 2));
             render_colored_quiver(ax, f, speed, clim_vals(2), clim_vals(2));
-            style_flow_axes(ax, size(f, 2), size(f, 1), um_per_pixel, true);
+            style_flow_axes(ax, size(f, 2), size(f, 1), um_per_pixel, false);
         else
             imagesc(ax, [0 size(f, 2) - 1], [0 size(f, 1) - 1], f);
             set(ax, 'YDir', 'reverse');
             xlim(ax, [0 size(f, 2) - 1]);
             ylim(ax, [0 size(f, 1) - 1]);
-            style_divergence_axes(ax, size(f, 2), size(f, 1), um_per_pixel, true);
+            style_divergence_axes(ax, size(f, 2), size(f, 1), um_per_pixel, false);
             add_divergence_scalebar(ax, size(f, 2), size(f, 1), um_per_pixel, scalebar_um);  % per-condition (5 or 3 um)
         end
         axis(ax, 'normal');                 % release axis-equal aspect lock
         set(ax, 'Position', ax_pos);        % force the fixed square box
         set(cb, 'Position', cb_pos);
         set(ax, 'CLim', clim_vals);
-        t_min = i * 0.10;
-        title(ax, sprintf('%s: t = %.2f min', title_prefix, t_min), ...
-            'FontSize', 15, 'FontWeight', 'bold');
+        th = title(ax, sprintf('%s: t = %s', title_prefix, fmt_time(i)), ...
+            'FontSize', 14, 'FontWeight', 'bold');
+        th.Units = 'normalized'; th.Position(2) = 1.015;   % snug to the axes top
 
         drawnow;
         frame = getframe(fig);
         img = frame.cdata;
-        if size(img, 1) ~= frame_px || size(img, 2) ~= frame_px
-            img = imresize(img, [frame_px frame_px]);
-        end
+        if isempty(crop_box); crop_box = compute_content_box(img, 8); end
+        img = img(crop_box(1):crop_box(2), crop_box(3):crop_box(4), :);
         writeVideo(vw, img);
     end
     close(fig);
+end
+
+% mm:ss time stamp for movie frame i (i*0.10 min = i*6 s).
+function s = fmt_time(i)
+    sec = round(i * 6);
+    s = sprintf('%d:%02d', floor(sec / 60), mod(sec, 60));
+end
+
+% Tight bounding box of non-white content (+pad), forced to even width/height
+% (H.264 needs even dims). Computed once from a frame and reused for all frames.
+function box = compute_content_box(img, pad)
+    mask = min(img, [], 3) < 250;
+    rows = find(any(mask, 2)); cols = find(any(mask, 1));
+    if isempty(rows) || isempty(cols); box = [1 size(img,1) 1 size(img,2)]; return; end
+    r0 = max(min(rows) - pad, 1); r1 = min(max(rows) + pad, size(img, 1));
+    c0 = max(min(cols) - pad, 1); c1 = min(max(cols) + pad, size(img, 2));
+    if mod(r1 - r0 + 1, 2) == 1; if r1 < size(img,1); r1 = r1 + 1; else; r0 = r0 - 1; end; end
+    if mod(c1 - c0 + 1, 2) == 1; if c1 < size(img,2); c1 = c1 + 1; else; c0 = c0 - 1; end; end
+    box = [r0 r1 c0 c1];
+end
+
+% =====================================================================
+% Combined pair renderer: two square panels side by side, ONE shared colorbar
+% (Right = vertical to the right; Below = horizontal centered underneath).
+% =====================================================================
+function render_pair_movie(out_path, fps, kind, fieldsA, fieldsB, clim_vals, um_per_pixel, ...
+        time_prefix, cbar_label, sb_A, sb_B, labelA, labelB, cbar_loc, nF)
+    if strcmpi(cbar_loc, 'Right')
+        fig_w = 1300; fig_h = 620; ph = 0.72; y0 = 0.10;
+    else
+        fig_w = 1240; fig_h = 720; ph = 0.60; y0 = 0.22;
+    end
+    pw = ph * fig_h / fig_w;   % keep panels square in pixels
+    gap = 0.03;
+    if strcmpi(cbar_loc, 'Right')
+        x0a = 0.04; x0b = x0a + pw + gap;
+        posA = [x0a y0 pw ph]; posB = [x0b y0 pw ph];
+        cb_pos = [x0b + pw + 0.010, y0 + 0.06, 0.016, ph - 0.12];   % snug to panel B
+        cb_location = 'eastoutside';
+    else
+        total = 2 * pw + gap;
+        x0a = (1 - total) / 2; x0b = x0a + pw + gap;
+        posA = [x0a y0 pw ph]; posB = [x0b y0 pw ph];
+        cb_pos = [x0a + total * 0.20, y0 - 0.065, total * 0.60, 0.028];   % just below the panels
+        cb_location = 'southoutside';
+    end
+
+    vw = VideoWriter(out_path, 'MPEG-4'); vw.FrameRate = fps; vw.Quality = 95; open(vw);
+    cleanup = onCleanup(@() close(vw)); %#ok<NASGU>
+
+    fig = figure('Visible', 'off', 'Units', 'pixels', 'Position', [80 80 fig_w fig_h], 'Color', 'white');
+    colormap(fig, plasma_colormap(256));
+    axA = axes(fig, 'Units', 'normalized', 'Position', posA);
+    axB = axes(fig, 'Units', 'normalized', 'Position', posB);
+    set(axA, 'CLim', clim_vals); set(axB, 'CLim', clim_vals);
+
+    cb = colorbar(axB, 'Location', cb_location);
+    set(cb, 'FontSize', 13, 'FontWeight', 'bold', 'LineWidth', 1, 'Position', cb_pos);
+    if ~isempty(cbar_label)
+        cb.Label.String = cbar_label; cb.Label.Interpreter = 'tex';
+        cb.Label.FontSize = 15; cb.Label.FontWeight = 'bold';
+    end
+
+    % static per-panel condition labels (above each panel)
+    annotation(fig, 'textbox', [posA(1) posA(2)+posA(4)+0.005 posA(3) 0.05], 'String', labelA, ...
+        'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'LineStyle', 'none', ...
+        'FontSize', 16, 'FontWeight', 'bold');
+    annotation(fig, 'textbox', [posB(1) posB(2)+posB(4)+0.005 posB(3) 0.05], 'String', labelB, ...
+        'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'LineStyle', 'none', ...
+        'FontSize', 16, 'FontWeight', 'bold');
+    % shared time title (updated per frame), centered on the PANELS (ignore the
+    % colorbar) and just above the per-panel labels
+    title_y = posA(2) + posA(4) + 0.055;
+    timeAnn = annotation(fig, 'textbox', [posA(1) title_y (posB(1)+posB(3)-posA(1)) 0.05], 'String', '', ...
+        'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'LineStyle', 'none', ...
+        'FontSize', 17, 'FontWeight', 'bold');
+
+    crop_box = [];   % computed once from frame 1, reused so all frames match size
+    for i = 1:nF
+        draw_field_panel(axA, kind, fieldsA{i}, clim_vals, um_per_pixel, sb_A, posA);
+        draw_field_panel(axB, kind, fieldsB{i}, clim_vals, um_per_pixel, sb_B, posB);
+        set(cb, 'Position', cb_pos);
+        timeAnn.String = sprintf('%s: t = %s', time_prefix, fmt_time(i));
+        drawnow;
+        fr = getframe(fig); img = fr.cdata;
+        if isempty(crop_box); crop_box = compute_content_box(img, 8); end
+        img = img(crop_box(1):crop_box(2), crop_box(3):crop_box(4), :);
+        writeVideo(vw, img);
+    end
+    close(fig);
+end
+
+% Draw one clean field panel (no axis numbers) into ax at ax_pos.
+function draw_field_panel(ax, kind, f, clim_vals, um_per_pixel, scalebar_um, ax_pos)
+    cla(ax); hold(ax, 'on');   % hold keeps NextPlot='add' so the colorbar survives
+    if strcmp(kind, 'flow')
+        speed = hypot(f(:, :, 1), f(:, :, 2));
+        render_colored_quiver(ax, f, speed, clim_vals(2), clim_vals(2));
+        style_flow_axes(ax, size(f, 2), size(f, 1), um_per_pixel, false);
+    else
+        imagesc(ax, [0 size(f, 2) - 1], [0 size(f, 1) - 1], f);
+        set(ax, 'YDir', 'reverse');
+        xlim(ax, [0 size(f, 2) - 1]); ylim(ax, [0 size(f, 1) - 1]);
+        style_divergence_axes(ax, size(f, 2), size(f, 1), um_per_pixel, false);
+        if ~isempty(scalebar_um)
+            add_divergence_scalebar(ax, size(f, 2), size(f, 1), um_per_pixel, scalebar_um);
+        end
+    end
+    axis(ax, 'normal');
+    set(ax, 'Position', ax_pos);
+    set(ax, 'CLim', clim_vals);
 end
 
 % =====================================================================
